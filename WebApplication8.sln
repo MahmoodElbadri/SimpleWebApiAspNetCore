@@ -1,0 +1,16 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "SimpleWebApiAspNetCore", "SimpleWebApiAspNetCore\SimpleWebApiAspNetCore.csproj", "{2D6AFAB9-487C-4868-A028-0788A0048A21}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Release|Any CPU = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{2D6AFAB9-487C-4868-A028-0788A0048A21}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{2D6AFAB9-487C-4868-A028-0788A0048A21}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{2D6AFAB9-487C-4868-A028-0788A0048A21}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{2D6AFAB9-487C-4868-A028-0788A0048A21}.Release|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
+EndGlobal
