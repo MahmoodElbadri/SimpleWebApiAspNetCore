@@ -10,85 +10,89 @@ namespace SimpleWebApiAspNetCore.Services;
 public class LinkService<T> : ILinkService<T>
 {
     private readonly IUrlHelper _urlHelper;
+
     public LinkService(IUrlHelperFactory urlHelperFactory, IActionContextAccessor actionContextAccessor)
     {
-        _urlHelper = urlHelperFactory.GetUrlHelper(actionContextAccessor.ActionContext);
-    }
-    
+        // Ensure actionContextAccessor.ActionContext is not null
+        if (actionContextAccessor.ActionContext is null)
+        {
+            throw new ArgumentNullException(nameof(actionContextAccessor.ActionContext), "ActionContext cannot be null.");
+        }
 
-    public List<LinkDTO> CreateLinksForCollection(QueryParameters queryParameters, int totalCount,ApiVersion version)
+        _urlHelper = urlHelperFactory.GetUrlHelper(actionContextAccessor.ActionContext)
+            ?? throw new InvalidOperationException("Failed to create IUrlHelper.");
+    }
+
+    public List<LinkDTO> CreateLinksForCollection(QueryParameters queryParameters, int totalCount, ApiVersion version)
     {
-        Type controllerType = (typeof(T));
+        Type controllerType = typeof(T);
         MethodInfo[] methods = controllerType.GetMethods();
 
         var links = new List<LinkDTO>();
         var getAllMethodName = GetMethod(methods, typeof(HttpGetAttribute), 0);
 
-// self 
-        links.Add(new LinkDTO(_urlHelper.Link(getAllMethodName, new
-        {
-            pagecount = queryParameters.PageCount,
-            page = queryParameters.Page,
-            orderby = queryParameters.OrderBy
-        }), "self", "GET"));
-
-        links.Add(new LinkDTO(_urlHelper.Link(getAllMethodName, new
-        {
-            pagecount = queryParameters.PageCount,
-            page = 1,
-            orderby = queryParameters.OrderBy
-        }), "first", "GET"));
-
-        links.Add(new LinkDTO(_urlHelper.Link(getAllMethodName, new
-        {
-            pagecount = queryParameters.PageCount,
-            page = queryParameters.GetTotalPages(totalCount),
-            orderby = queryParameters.OrderBy
-        }), "last", "GET"));
-
-        if (queryParameters.HasNext(totalCount))
+        if (!string.IsNullOrEmpty(getAllMethodName))
         {
             links.Add(new LinkDTO(_urlHelper.Link(getAllMethodName, new
             {
                 pagecount = queryParameters.PageCount,
-                page = queryParameters.Page + 1,
+                page = queryParameters.Page,
                 orderby = queryParameters.OrderBy
-            }), "next", "GET"));
-        }
+            }) ?? string.Empty, "self", "GET"));
 
-        if (queryParameters.HasPrevious())
-        {
             links.Add(new LinkDTO(_urlHelper.Link(getAllMethodName, new
             {
                 pagecount = queryParameters.PageCount,
-                page = queryParameters.Page - 1,
+                page = 1,
                 orderby = queryParameters.OrderBy
-            }), "previous", "GET"));
+            }) ?? string.Empty, "first", "GET"));
+
+            links.Add(new LinkDTO(_urlHelper.Link(getAllMethodName, new
+            {
+                pagecount = queryParameters.PageCount,
+                page = queryParameters.GetTotalPages(totalCount),
+                orderby = queryParameters.OrderBy
+            }) ?? string.Empty, "last", "GET"));
+
+            if (queryParameters.HasNext(totalCount))
+            {
+                links.Add(new LinkDTO(_urlHelper.Link(getAllMethodName, new
+                {
+                    pagecount = queryParameters.PageCount,
+                    page = queryParameters.Page + 1,
+                    orderby = queryParameters.OrderBy
+                }) ?? string.Empty, "next", "GET"));
+            }
+
+            if (queryParameters.HasPrevious())
+            {
+                links.Add(new LinkDTO(_urlHelper.Link(getAllMethodName, new
+                {
+                    pagecount = queryParameters.PageCount,
+                    page = queryParameters.Page - 1,
+                    orderby = queryParameters.OrderBy
+                }) ?? string.Empty, "previous", "GET"));
+            }
         }
 
-        var posturl = _urlHelper.Link(GetMethod(methods, typeof(HttpPostAttribute)), new { version = version.ToString() });
-
-        links.Add(
-            new LinkDTO(posturl,
-                "create",
-                "POST"));
+        var postUrl = _urlHelper.Link(GetMethod(methods, typeof(HttpPostAttribute)) ?? string.Empty, new { version = version.ToString() });
+        links.Add(new LinkDTO(postUrl ?? string.Empty, "create", "POST"));
 
         return links;
     }
-    private string GetMethod(MethodInfo[] methods, Type type, int routeParamsLength = 0)
+
+    private string? GetMethod(MethodInfo[] methods, Type type, int routeParamsLength = 0)
     {
-        var filteredMethods = methods.Where(m => m.GetCustomAttributes(type, false).Length > 0).ToArray();
+        var filteredMethods = methods.Where(m => m.GetCustomAttributes(type, false).Any()).ToArray();
 
         if (filteredMethods.Length == 0)
         {
-            return "";
+            return null;
         }
 
         if (routeParamsLength == 0)
         {
-            var toReturn = filteredMethods.FirstOrDefault();
-
-            return toReturn is not null ? toReturn.Name : "";
+            return filteredMethods.FirstOrDefault()?.Name;
         }
 
         foreach (var method in filteredMethods)
@@ -101,44 +105,51 @@ public class LinkService<T> : ILinkService<T>
             }
         }
 
-        return "";
+        return null;
     }
+
     public object ExpandSingleFoodItem(object resource, int identifier, ApiVersion version)
     {
-        var resourceToReturn = resource.ToDynamic() as IDictionary<string, object>;
+        if (resource is null) throw new ArgumentNullException(nameof(resource), "Resource cannot be null.");
+
+        var resourceToReturn = resource.ToDynamic() as IDictionary<string, object> 
+            ?? throw new InvalidOperationException("Failed to convert resource to dynamic.");
 
         var links = GetLinksForSingleItem(identifier, version);
-
         resourceToReturn.Add("links", links);
 
         return resourceToReturn;
     }
+
     private IEnumerable<LinkDTO> GetLinksForSingleItem(int id, ApiVersion version)
     {
-        Type myType = (typeof(T));
+        Type myType = typeof(T);
         MethodInfo[] methods = myType.GetMethods();
         var links = new List<LinkDTO>();
 
-        var getLink = _urlHelper.Link(GetMethod(methods, typeof(HttpGetAttribute), 1), new { version = version.ToString(), id = id });
-        links.Add(new LinkDTO(getLink, "self", "GET"));
+        var getLink = _urlHelper.Link(GetMethod(methods, typeof(HttpGetAttribute), 1) ?? string.Empty, new { version = version.ToString(), id });
+        if (!string.IsNullOrEmpty(getLink))
+        {
+            links.Add(new LinkDTO(getLink, "self", "GET"));
+        }
 
-        var deleteLink = _urlHelper.Link(GetMethod(methods, typeof(HttpDeleteAttribute)), new { version = version.ToString(), id = id });
-        links.Add(
-            new LinkDTO(deleteLink,
-                "delete",
-                "DELETE"));
+        var deleteLink = _urlHelper.Link(GetMethod(methods, typeof(HttpDeleteAttribute)) ?? string.Empty, new { version = version.ToString(), id });
+        if (!string.IsNullOrEmpty(deleteLink))
+        {
+            links.Add(new LinkDTO(deleteLink, "delete", "DELETE"));
+        }
 
-        var createLink = _urlHelper.Link(GetMethod(methods, typeof(HttpPostAttribute)), new { version = version.ToString() });
-        links.Add(
-            new LinkDTO(createLink,
-                "create_food",
-                "POST"));
+        var createLink = _urlHelper.Link(GetMethod(methods, typeof(HttpPostAttribute)) ?? string.Empty, new { version = version.ToString() });
+        if (!string.IsNullOrEmpty(createLink))
+        {
+            links.Add(new LinkDTO(createLink, "create_food", "POST"));
+        }
 
-        var updateLink = _urlHelper.Link(GetMethod(methods, typeof(HttpPutAttribute)), new { version = version.ToString(), id = id });
-        links.Add(
-            new LinkDTO(updateLink,
-                "update_food",
-                "PUT"));
+        var updateLink = _urlHelper.Link(GetMethod(methods, typeof(HttpPutAttribute)) ?? string.Empty, new { version = version.ToString(), id });
+        if (!string.IsNullOrEmpty(updateLink))
+        {
+            links.Add(new LinkDTO(updateLink, "update_food", "PUT"));
+        }
 
         return links;
     }

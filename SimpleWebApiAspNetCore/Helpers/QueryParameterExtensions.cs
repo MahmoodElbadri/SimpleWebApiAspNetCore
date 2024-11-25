@@ -8,6 +8,7 @@ public static class QueryParameterExtensions
     {
         return (queryParameters.Page > 1);
     }
+
     public static bool IsDescending(this QueryParameters queryParameters)
     {
         if (!string.IsNullOrEmpty(queryParameters.OrderBy))
@@ -16,5 +17,20 @@ public static class QueryParameterExtensions
         }
 
         return false;
+    }
+
+    public static bool HasNext(this QueryParameters queryParameters, int totalCount)
+    {
+        return (queryParameters.Page < (int)GetTotalPages(queryParameters, totalCount));
+    }
+
+    public static double GetTotalPages(this QueryParameters queryParameters, int totalCount)
+    {
+        return Math.Ceiling(totalCount / (double)queryParameters.PageCount);
+    }
+
+    public static bool HasQuery(this QueryParameters queryParameters)
+    {
+        return !String.IsNullOrEmpty(queryParameters.Query);
     }
 }
